@@ -4,6 +4,35 @@ This is a portfolio project I built to predict which healthcare providers are at
 
 The problem it's aimed at: a health plan that pays a claim to a provider who has been excluded by the OIG can end up on the hook for that money. Today a lot of that checking is reactive. The idea here is to score providers up front so the risky ones get looked at first, instead of everyone getting reviewed in the order they happen to come in.
 
+## Architecture
+
+An agent reads the incoming question, works out the intent, and routes it to one of two tools: a risk-scoring model for a specific provider, or retrieval over the exclusion data for a general question.
+
+```mermaid
+flowchart LR
+    Q["Provider question"] --> A
+
+    subgraph Agent["LangGraph agent"]
+        A["LLM router<br/>reads intent, picks a tool"]
+    end
+
+    A -->|risk intent| T1
+    A -->|general question| T2
+
+    subgraph T1["Risk-scoring tool · deployed on Cloud Run"]
+        R["NPI → XGBoost → 0–1 risk score"]
+    end
+
+    subgraph T2["Retrieval (RAG) tool"]
+        G["embed → Qdrant → Gemini<br/>grounded · refuses if unsupported"]
+    end
+
+    D[("Public federal data:<br/>NPPES registry + OIG LEIE")] -.-> Agent
+
+    classDef deployed fill:#dcfce7,stroke:#16a34a,color:#14532d;
+    class T1 deployed;
+```
+
 ## Data
 
 Two public US government datasets, both free to download:
